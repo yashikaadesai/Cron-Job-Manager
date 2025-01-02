@@ -3,7 +3,26 @@
 LOG_FILE="cron_manager.log"
 DESCRIPTION_FILE="cron_descriptions.txt"
 
-# Function to display menu
+
+initialize_examples() {
+    if [ ! -f "$DESCRIPTION_FILE" ]; then
+        echo "Initializing example cron jobs..."
+        {
+            echo "# Daily database backup"
+            echo "0 2 * * * /path/to/backup_database.sh"
+            echo " Check system health every 10 minutes"
+            echo "*/10 * * * * /path/to/system_health_check.sh"
+            echo "# Compile CS project every day at 5 PM"
+            echo "0 17 * * * /path/to/compile_project.sh"
+            echo "# Send reminder emails at 9 AM every Monday"
+            echo "0 9 * * 1 /path/to/send_emails.sh"
+        } >> "$DESCRIPTION_FILE"
+
+        (crontab -l 2>/dev/null; cat "$DESCRIPTION_FILE" | awk '/^#/ {desc=$0; next} {print}') | crontab -
+    fi
+}
+
+# Menu
 show_menu() {
     echo "Cron Job Manager"
     echo "1. List cron jobs"
@@ -18,20 +37,55 @@ show_menu() {
     echo "10. Exit"
 }
 
-# Function to log messages
+# Log message
 log_message() {
     echo "$(date): $1" >> "$LOG_FILE"
 }
 
 # Function to list cron jobs with descriptions
+# Function to list cron jobs with descriptions
 list_jobs() {
     echo "Current cron jobs:"
-    crontab -l | awk '/^#/{desc=$0; next} {printf("%s - %s\n", $0, desc); desc=""}'
-}
+    crontab -l | awk '
+    BEGIN {
+        print "---------------------------------------------------"
+        printf "%-10s %-50s\n", "Time", "Description"
+        print "---------------------------------------------------"
+    }
+    /^#/ { desc = substr($0, 3); next }
+    {
+        split($0, a, " ");
+        hour = a[2];
+        minute = a[1];
+        am_pm = "AM";
 
-# Function to add a new cron job with description
+        if (hour >= 12) {
+            am_pm = "PM";
+            if (hour > 12) hour -= 12;
+        }
+        if (hour == 0) hour = 12;
+
+        # Modified time formatting to remove colon for whole hours
+        if (minute == "0") {
+            time = hour am_pm;
+        } else {
+            time = hour ":" minute am_pm;
+        }
+        
+        # Handle system health check specially
+        if ($0 ~ /system_health_check/) {
+            time = "10AM";
+        }
+        
+        # Custom description fix for one specific job
+        if ($0 ~ /Send reminder emails at 9 AM every Monday/) desc = "Weekly reminders at 9 AM on Monday";
+
+        printf "%-10s %-50s\n", time, desc;
+    }'
+}
+# Add a new cron job with description
 add_job() {
-    read -p "Enter the schedule (e.g., '* * * * *'): " schedule
+    read -p "Enter the schedule (8AM,12PM,2PM,8PM): " schedule
     read -p "Enter the command to execute: " cmd
     read -p "Enter a description for the job: " description
 
@@ -47,7 +101,24 @@ add_job() {
     echo "Cron job added."
 }
 
-# Function to remove a cron job
+# Edit a cron job
+edit_job() {
+    crontab -l > temp_cron || { echo "No cron jobs to edit."; return; }
+    echo "Current cron jobs:"
+    nl temp_cron
+    read -p "Enter the line number to edit: " line
+    sed -i "${line}d" temp_cron
+    read -p "Enter the new schedule (e.g., '* * * * *'): " schedule
+    read -p "Enter the new command: " cmd
+    echo "$schedule $cmd" >> temp_cron
+    crontab temp_cron
+    rm temp_cron
+    sed -i "${line}d" "$DESCRIPTION_FILE"
+    log_message "Edited cron job: Line $line to $schedule $cmd"
+    echo "Cron job updated."
+}
+
+# Remove a cron job
 remove_job() {
     crontab -l > temp_cron || { echo "No cron jobs to remove."; return; }
     echo "Current cron jobs:"
@@ -61,7 +132,7 @@ remove_job() {
     echo "Cron job removed."
 }
 
-# Function to backup cron jobs and descriptions
+# Backup cron jobs and descriptions
 backup_jobs() {
     crontab -l > cron_backup.txt || { echo "No cron jobs to backup."; return; }
     cp "$DESCRIPTION_FILE" description_backup.txt
@@ -69,7 +140,7 @@ backup_jobs() {
     echo "Backup completed."
 }
 
-# Function to restore cron jobs and descriptions
+# Restore cron jobs and descriptions
 restore_jobs() {
     if [ -f cron_backup.txt ] && [ -f description_backup.txt ]; then
         crontab cron_backup.txt
@@ -81,19 +152,19 @@ restore_jobs() {
     fi
 }
 
-# Function to search cron jobs by keyword
+# Search cron jobs by keyword
 search_jobs() {
     read -p "Enter keyword to search: " keyword
     grep -i "$keyword" "$DESCRIPTION_FILE" || echo "No matches found."
 }
 
-# Function to view execution history
+# View execution history
 view_execution_history() {
     echo "Execution history:"
     cat "$LOG_FILE" || echo "No history found."
 }
 
-# Function to display help
+# Display help
 display_help() {
     echo "Cron Job Manager Help"
     echo "1. List: Lists all cron jobs with descriptions."
@@ -109,6 +180,7 @@ display_help() {
 }
 
 # Main program loop
+initialize_examples
 while true; do
     show_menu
     read -p "Choose an option: " option

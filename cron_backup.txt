@@ -1,0 +1,13 @@
+# Daily database backup
+0 2 * * * /path/to/backup_database.sh
+# Check system health every 10 minutes
+*/10 * * * * /path/to/system_health_check.sh
+# Compile CS project every day at 5 PM
+0 17 * * * /path/to/compile_project.sh
+# Send reminder emails at 9 AM every Monday
+0 9 * * 1 /path/to/send_emails.sh
+
+# Daily database backup
+0 2 * * * /path/to/backup_database.sh
+# Daily disk space usage check
+0 8 * * * cmd
