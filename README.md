@@ -32,6 +32,9 @@ cd cron-manager
 ```bash
 chmod +x cron_manager.sh
 ```
+##  Logging
+
+All actions performed by the script are logged in the cron_manager.log file.
 
 ## 🎮 Usage
 
