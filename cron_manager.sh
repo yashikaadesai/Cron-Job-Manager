@@ -43,7 +43,6 @@ log_message() {
 }
 
 # Function to list cron jobs with descriptions
-# Function to list cron jobs with descriptions
 list_jobs() {
     echo "Current cron jobs:"
     crontab -l | awk '
@@ -89,7 +88,6 @@ add_job() {
     read -p "Enter the command to execute: " cmd
     read -p "Enter a description for the job: " description
 
-    # Validate cron schedule
     if ! [[ $schedule =~ ^(\*|[0-9,-/]+) ]]; then
         echo "Invalid cron schedule."
         return
